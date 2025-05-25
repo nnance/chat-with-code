@@ -30,7 +30,8 @@
   "dependencies": {
     "@agentuity/sdk": "^0.0.120",
     "@ai-sdk/anthropic": "^1.2.12",
-    "ai": "^4.3.16"
+    "ai": "^4.3.16",
+    "octokit": "^5.0.2"
   },
   "module": "index.ts"
 }
