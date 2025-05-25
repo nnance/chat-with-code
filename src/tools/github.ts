@@ -59,6 +59,30 @@ export interface CodeSearchResult {
   score: number;
 }
 
+export interface Commit {
+  sha: string;
+  message: string;
+  author: {
+    name: string;
+    email: string;
+    date: string;
+  };
+  committer: {
+    name: string;
+    email: string;
+    date: string;
+  };
+  url: string;
+  html_url: string;
+}
+
+export interface RepositoryArchive {
+  downloadUrl: string;
+  filename: string;
+  ref: string;
+  format: 'tarball' | 'zipball';
+}
+
 export interface GitHubError extends Error {
   status?: number;
   response?: {
@@ -296,6 +320,136 @@ export class GitHubTool {
         },
         score: item.score,
       }));
+    } catch (error) {
+      throw this.handleError(error as GitHubError);
+    }
+  }
+
+  async getRepositoryArchive(
+    owner: string,
+    repo: string,
+    format: 'tarball' | 'zipball' = 'zipball',
+    ref?: string
+  ): Promise<RepositoryArchive> {
+    try {
+      const response = await this.octokit.rest.repos.downloadArchive({
+        owner,
+        repo,
+        archive_format: format,
+        ref: ref || 'HEAD',
+      });
+
+      const downloadUrl = response.url;
+      const filename = `${repo}-${ref || 'HEAD'}.${format === 'zipball' ? 'zip' : 'tar.gz'}`;
+
+      return {
+        downloadUrl,
+        filename,
+        ref: ref || 'HEAD',
+        format,
+      };
+    } catch (error) {
+      throw this.handleError(error as GitHubError);
+    }
+  }
+
+  async downloadRepositoryArchive(
+    owner: string,
+    repo: string,
+    format: 'tarball' | 'zipball' = 'zipball',
+    ref?: string
+  ): Promise<Buffer> {
+    try {
+      const archive = await this.getRepositoryArchive(owner, repo, format, ref);
+      
+      // Fetch the actual archive data
+      const response = await fetch(archive.downloadUrl);
+      if (!response.ok) {
+        throw new Error(`Failed to download archive: ${response.statusText}`);
+      }
+
+      const arrayBuffer = await response.arrayBuffer();
+      return Buffer.from(arrayBuffer);
+    } catch (error) {
+      throw this.handleError(error as GitHubError);
+    }
+  }
+
+  async getFileHistory(
+    owner: string,
+    repo: string,
+    path: string,
+    options: { per_page?: number; page?: number } = {}
+  ): Promise<Commit[]> {
+    try {
+      const { data } = await this.octokit.rest.repos.listCommits({
+        owner,
+        repo,
+        path,
+        per_page: options.per_page || 30,
+        page: options.page || 1,
+      });
+
+      return data.map((commit) => ({
+        sha: commit.sha,
+        message: commit.commit.message,
+        author: {
+          name: commit.commit.author?.name || '',
+          email: commit.commit.author?.email || '',
+          date: commit.commit.author?.date || '',
+        },
+        committer: {
+          name: commit.commit.committer?.name || '',
+          email: commit.commit.committer?.email || '',
+          date: commit.commit.committer?.date || '',
+        },
+        url: commit.url,
+        html_url: commit.html_url,
+      }));
+    } catch (error) {
+      throw this.handleError(error as GitHubError);
+    }
+  }
+
+  async getCommitDiff(
+    owner: string,
+    repo: string,
+    ref: string
+  ): Promise<string> {
+    try {
+      const { data } = await this.octokit.rest.repos.getCommit({
+        owner,
+        repo,
+        ref,
+        mediaType: {
+          format: 'diff',
+        },
+      });
+
+      return data as unknown as string;
+    } catch (error) {
+      throw this.handleError(error as GitHubError);
+    }
+  }
+
+  async compareCommits(
+    owner: string,
+    repo: string,
+    base: string,
+    head: string
+  ): Promise<string> {
+    try {
+      const { data } = await this.octokit.rest.repos.compareCommits({
+        owner,
+        repo,
+        base,
+        head,
+        mediaType: {
+          format: 'diff',
+        },
+      });
+
+      return data as unknown as string;
     } catch (error) {
       throw this.handleError(error as GitHubError);
     }
