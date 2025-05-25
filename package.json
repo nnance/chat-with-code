@@ -12,13 +12,7 @@
     "prestart": "agentuity bundle",
     "start": "bun run .agentuity/index.js"
   },
-  "keywords": [
-    "agentuity",
-    "agent",
-    "ai",
-    "ai agent",
-    "bun"
-  ],
+  "keywords": ["agentuity", "agent", "ai", "ai agent", "bun"],
   "private": true,
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
