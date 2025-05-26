@@ -1,1 +1,1 @@
-- make sure to always run the tsc command to confirm there are no build errors when you are done implementing a feature or bug fix
+- make sure to always run the `npx tsc --noEmit --skipLibCheck` command to confirm there are no build errors when you are done implementing a feature or bug fix

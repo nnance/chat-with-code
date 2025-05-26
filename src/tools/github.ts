@@ -96,6 +96,31 @@ export interface GitHubError extends Error {
 export class GitHubTool {
   private octokit: Octokit;
 
+  private isTextFile(path: string): boolean {
+    const textExtensions = [
+      '.txt', '.md', '.js', '.ts', '.jsx', '.tsx', '.py', '.java', '.c', '.cpp', '.h', '.hpp',
+      '.cs', '.php', '.rb', '.go', '.rs', '.swift', '.kt', '.scala', '.sh', '.bash', '.zsh',
+      '.fish', '.ps1', '.bat', '.cmd', '.xml', '.html', '.htm', '.css', '.scss', '.sass',
+      '.less', '.json', '.yaml', '.yml', '.toml', '.ini', '.cfg', '.conf', '.log', '.sql',
+      '.r', '.R', '.m', '.pl', '.pm', '.lua', '.vim', '.dockerfile', '.gitignore', '.gitattributes',
+      '.editorconfig', '.eslintrc', '.prettierrc', '.babelrc', '.env', '.example', '.sample',
+      '.template', '.tpl', '.mustache', '.hbs', '.handlebars', '.ejs', '.pug', '.jade'
+    ];
+    
+    const lowerPath = path.toLowerCase();
+    const hasTextExtension = textExtensions.some(ext => lowerPath.endsWith(ext));
+    
+    // Also check for common config files without extensions
+    const baseName = path.split('/').pop()?.toLowerCase() || '';
+    const configFiles = [
+      'readme', 'license', 'changelog', 'contributing', 'dockerfile', 'makefile',
+      'rakefile', 'gemfile', 'requirements', 'package-lock', 'yarn', 'cargo'
+    ];
+    const isConfigFile = configFiles.some(name => baseName.startsWith(name));
+    
+    return hasTextExtension || isConfigFile;
+  }
+
   constructor(token?: string) {
     if (!token) {
       throw new Error(
@@ -141,8 +166,13 @@ export class GitHubTool {
     repo: string,
     path: string,
     ref?: string
-  ): Promise<FileContent> {
+  ): Promise<FileContent | null> {
     try {
+      // Check if the file is likely to be a text file
+      if (!this.isTextFile(path)) {
+        return null; // Skip non-text files silently
+      }
+
       const { data } = await this.octokit.rest.repos.getContent({
         owner,
         repo,
@@ -163,6 +193,11 @@ export class GitHubTool {
           ? Buffer.from(data.content, 'base64').toString('utf-8')
           : data.content;
 
+      // Additional check for binary content after decoding
+      if (content.includes('\0')) {
+        return null; // Skip binary files silently
+      }
+
       return {
         name: data.name,
         path: data.path,
@@ -181,7 +216,7 @@ export class GitHubTool {
     repo: string,
     path: string,
     ref?: string
-  ): Promise<FileContent> {
+  ): Promise<FileContent | null> {
     return this.getFileContent(owner, repo, path, ref);
   }
 
@@ -236,7 +271,10 @@ export class GitHubTool {
             item.path,
             ref
           );
-          files.push(fileContent);
+          if (fileContent) {
+            files.push(fileContent);
+          }
+          // If fileContent is null, skip silently (non-text file)
         } else if (item.type === 'dir') {
           const dirFiles = await this.downloadDirectory(
             owner,

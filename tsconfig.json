@@ -20,5 +20,6 @@
     "target": "ESNext",
     "types": ["@types/bun", "@agentuity/sdk"],
     "verbatimModuleSyntax": true
-  }
+  },
+  "exclude": ["node_modules"]
 }

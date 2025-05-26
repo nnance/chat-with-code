@@ -221,10 +221,10 @@ Provide concise and accurate information to help users with their requests.`;
     }
 
     const result = await generateText({
-      model: anthropic('claude-3-7-sonnet-latest'),
+      model: anthropic('claude-4-sonnet-20250514'),
       system: systemPrompt,
       prompt: userMessage,
-      maxSteps: 10, // Allow multiple tool calls
+      maxSteps: 30, // Allow multiple tool calls
       ...(githubTool && { tools, toolChoice: 'auto' as const }),
     });
 
