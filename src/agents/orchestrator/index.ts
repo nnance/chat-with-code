@@ -44,9 +44,11 @@ export default async function Agent(
 
 ${githubTool ? `You have access to a GitHub tool that can:
 - Retrieve repository information and metadata
-- Download individual files or entire directories  
+- Get file content and list directory contents
+- Download individual files or entire directories recursively
 - Search repositories and code across GitHub
 - Get file history and commit diffs
+- Compare commits and get diffs between them
 - Download repository archives (zip/tarball)
 
 When users ask about code repositories, GitHub projects, or want to analyze code, you can use these capabilities to help them.` : 'GitHub integration is not available (no GITHUB_TOKEN provided).'}
@@ -64,6 +66,7 @@ Provide concise and accurate information to help users with their requests.`;
             repo: z.string().describe('Repository name'),
           }),
           execute: async ({ owner, repo }) => {
+            ctx.logger.info(`Calling getRepository: ${owner}/${repo}`);
             return await githubTool.getRepository(owner, repo);
           },
         }),
@@ -76,6 +79,7 @@ Provide concise and accurate information to help users with their requests.`;
             ref: z.string().optional().describe('Branch, tag, or commit SHA'),
           }),
           execute: async ({ owner, repo, path, ref }) => {
+            ctx.logger.info(`Calling downloadFile: ${owner}/${repo}/${path}${ref ? ` (ref: ${ref})` : ''}`);
             return await githubTool.downloadFile(owner, repo, path, ref);
           },
         }),
@@ -91,6 +95,7 @@ Provide concise and accurate information to help users with their requests.`;
             }).optional(),
           }),
           execute: async ({ query, options }) => {
+            ctx.logger.info(`Calling searchRepositories: "${query}"`);
             return await githubTool.searchRepositories(query, options);
           },
         }),
@@ -102,7 +107,114 @@ Provide concise and accurate information to help users with their requests.`;
             repo: z.string().optional().describe('Repository name'),
           }),
           execute: async ({ query, owner, repo }) => {
+            ctx.logger.info(`Calling searchCode: "${query}"${owner && repo ? ` in ${owner}/${repo}` : ''}`);
             return await githubTool.searchCode(query, owner, repo);
+          },
+        }),
+        getFileContent: tool({
+          description: 'Get file content from a repository',
+          parameters: z.object({
+            owner: z.string().describe('Repository owner/organization'),
+            repo: z.string().describe('Repository name'),
+            path: z.string().describe('File path in repository'),
+            ref: z.string().optional().describe('Branch, tag, or commit SHA'),
+          }),
+          execute: async ({ owner, repo, path, ref }) => {
+            ctx.logger.info(`Calling getFileContent: ${owner}/${repo}/${path}${ref ? ` (ref: ${ref})` : ''}`);
+            return await githubTool.getFileContent(owner, repo, path, ref);
+          },
+        }),
+        getRepositoryContents: tool({
+          description: 'List contents of a directory in a repository',
+          parameters: z.object({
+            owner: z.string().describe('Repository owner/organization'),
+            repo: z.string().describe('Repository name'),
+            path: z.string().optional().describe('Directory path (empty for root)'),
+            ref: z.string().optional().describe('Branch, tag, or commit SHA'),
+          }),
+          execute: async ({ owner, repo, path, ref }) => {
+            ctx.logger.info(`Calling getRepositoryContents: ${owner}/${repo}${path ? `/${path}` : ''}${ref ? ` (ref: ${ref})` : ''}`);
+            return await githubTool.getRepositoryContents(owner, repo, path, ref);
+          },
+        }),
+        downloadDirectory: tool({
+          description: 'Download all files in a directory recursively',
+          parameters: z.object({
+            owner: z.string().describe('Repository owner/organization'),
+            repo: z.string().describe('Repository name'),
+            path: z.string().optional().describe('Directory path (empty for root)'),
+            ref: z.string().optional().describe('Branch, tag, or commit SHA'),
+          }),
+          execute: async ({ owner, repo, path, ref }) => {
+            ctx.logger.info(`Calling downloadDirectory: ${owner}/${repo}${path ? `/${path}` : ''}${ref ? ` (ref: ${ref})` : ''}`);
+            return await githubTool.downloadDirectory(owner, repo, path, ref);
+          },
+        }),
+        getRepositoryArchive: tool({
+          description: 'Get download URL for repository archive',
+          parameters: z.object({
+            owner: z.string().describe('Repository owner/organization'),
+            repo: z.string().describe('Repository name'),
+            format: z.enum(['tarball', 'zipball']).optional().describe('Archive format'),
+            ref: z.string().optional().describe('Branch, tag, or commit SHA'),
+          }),
+          execute: async ({ owner, repo, format, ref }) => {
+            ctx.logger.info(`Calling getRepositoryArchive: ${owner}/${repo} (${format || 'tarball'})${ref ? ` (ref: ${ref})` : ''}`);
+            return await githubTool.getRepositoryArchive(owner, repo, format, ref);
+          },
+        }),
+        downloadRepositoryArchive: tool({
+          description: 'Download repository archive as Buffer',
+          parameters: z.object({
+            owner: z.string().describe('Repository owner/organization'),
+            repo: z.string().describe('Repository name'),
+            format: z.enum(['tarball', 'zipball']).optional().describe('Archive format'),
+            ref: z.string().optional().describe('Branch, tag, or commit SHA'),
+          }),
+          execute: async ({ owner, repo, format, ref }) => {
+            ctx.logger.info(`Calling downloadRepositoryArchive: ${owner}/${repo} (${format || 'tarball'})${ref ? ` (ref: ${ref})` : ''}`);
+            return await githubTool.downloadRepositoryArchive(owner, repo, format, ref);
+          },
+        }),
+        getFileHistory: tool({
+          description: 'Get commit history for a specific file',
+          parameters: z.object({
+            owner: z.string().describe('Repository owner/organization'),
+            repo: z.string().describe('Repository name'),
+            path: z.string().describe('File path in repository'),
+            options: z.object({
+              per_page: z.number().optional().describe('Results per page'),
+              page: z.number().optional().describe('Page number'),
+            }).optional(),
+          }),
+          execute: async ({ owner, repo, path, options }) => {
+            ctx.logger.info(`Calling getFileHistory: ${owner}/${repo}/${path}`);
+            return await githubTool.getFileHistory(owner, repo, path, options);
+          },
+        }),
+        getCommitDiff: tool({
+          description: 'Get diff for a specific commit',
+          parameters: z.object({
+            owner: z.string().describe('Repository owner/organization'),
+            repo: z.string().describe('Repository name'),
+            ref: z.string().describe('Commit SHA'),
+          }),
+          execute: async ({ owner, repo, ref }) => {
+            ctx.logger.info(`Calling getCommitDiff: ${owner}/${repo} (${ref})`);
+            return await githubTool.getCommitDiff(owner, repo, ref);
+          },
+        }),
+        compareCommits: tool({
+          description: 'Compare two commits and get diff',
+          parameters: z.object({
+            owner: z.string().describe('Repository owner/organization'),
+            repo: z.string().describe('Repository name'),
+            base: z.string().describe('Base commit SHA or branch'),
+            head: z.string().describe('Head commit SHA or branch'),
+          }),
+          execute: async ({ owner, repo, base, head }) => {
+            ctx.logger.info(`Calling compareCommits: ${owner}/${repo} (${base}...${head})`);
+            return await githubTool.compareCommits(owner, repo, base, head);
           },
         }),
       };
@@ -112,6 +224,7 @@ Provide concise and accurate information to help users with their requests.`;
       model: anthropic('claude-3-7-sonnet-latest'),
       system: systemPrompt,
       prompt: userMessage,
+      maxSteps: 10, // Allow multiple tool calls
       ...(githubTool && { tools, toolChoice: 'auto' as const }),
     });
 
