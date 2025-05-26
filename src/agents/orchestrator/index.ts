@@ -10,22 +10,28 @@ export default async function Agent(
   ctx: AgentContext
 ) {
   try {
-    const userMessage = (await req.data.text()) ?? 'Hello, Claude';
+    const userMessage = await req.data.text();
+    if (!userMessage) {
+      return resp.text('Error: No text input provided in the request.');
+    }
     
-    // Initialize GitHub tool if token is available
-    let githubTool: GitHubTool | null = null;
-    if (process.env.GITHUB_TOKEN) {
-      try {
-        githubTool = new GitHubTool(process.env.GITHUB_TOKEN);
-      } catch (error) {
-        ctx.logger.warn('GitHub tool not available:', error);
-      }
+    // Initialize GitHub tool - require token
+    if (!process.env.GITHUB_TOKEN) {
+      return resp.text('Error: GITHUB_TOKEN environment variable is required.');
+    }
+    
+    let githubTool: GitHubTool;
+    try {
+      githubTool = new GitHubTool(process.env.GITHUB_TOKEN);
+    } catch (error) {
+      ctx.logger.error('Failed to initialize GitHub tool:', error);
+      return resp.text('Error: Failed to initialize GitHub integration.');
     }
 
     // Enhanced system prompt with GitHub capabilities
     const systemPrompt = `You are a helpful AI assistant with GitHub repository access capabilities.
 
-${githubTool ? `You have access to a GitHub tool that can:
+You have access to a GitHub tool that can:
 - Retrieve repository information and metadata
 - Get file content and list directory contents
 - Download individual files or entire directories recursively
@@ -34,14 +40,11 @@ ${githubTool ? `You have access to a GitHub tool that can:
 - Compare commits and get diffs between them
 - Download repository archives (zip/tarball)
 
-When users ask about code repositories, GitHub projects, or want to analyze code, you can use these capabilities to help them.` : 'GitHub integration is not available (no GITHUB_TOKEN provided).'}
+When users ask about code repositories, GitHub projects, or want to analyze code, you can use these capabilities to help them.
 
 Provide concise and accurate information to help users with their requests.`;
 
-    let tools = {};
-    
-    if (githubTool) {
-      tools = {
+    const tools = {
         getRepository: tool({
           description: 'Get repository information and metadata',
           parameters: z.object({
@@ -201,14 +204,14 @@ Provide concise and accurate information to help users with their requests.`;
           },
         }),
       };
-    }
 
     const result = await generateText({
       model: anthropic('claude-4-sonnet-20250514'),
       system: systemPrompt,
       prompt: userMessage,
       maxSteps: 30, // Allow multiple tool calls
-      ...(githubTool && { tools, toolChoice: 'auto' as const }),
+      tools,
+      toolChoice: 'auto' as const,
     });
 
     return resp.text(result.text);
