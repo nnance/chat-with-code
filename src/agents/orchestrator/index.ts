@@ -4,23 +4,6 @@ import { generateText, tool } from 'ai';
 import { z } from 'zod';
 import { GitHubTool } from '../../tools/github.js';
 
-export const welcome = () => {
-  return {
-    welcome:
-      "Welcome to the Vercel AI SDK with Anthropic Agent! I can help you build AI-powered applications using Vercel's AI SDK with Claude models.",
-    prompts: [
-      {
-        data: 'How do I implement streaming responses with Claude models?',
-        contentType: 'text/plain',
-      },
-      {
-        data: 'What are the best practices for prompt engineering with Claude?',
-        contentType: 'text/plain',
-      },
-    ],
-  };
-};
-
 export default async function Agent(
   req: AgentRequest,
   resp: AgentResponse,
