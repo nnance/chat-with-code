@@ -29,7 +29,7 @@ export default async function Agent(
     }
 
     // Enhanced system prompt with GitHub capabilities
-    const systemPrompt = `You are a helpful AI assistant with GitHub repository access capabilities.
+    const systemPrompt = `You are a helpful AI assistant specialized in GitHub repository analysis and code exploration.
 
 You have access to a GitHub tool that can:
 - Retrieve repository information and metadata
